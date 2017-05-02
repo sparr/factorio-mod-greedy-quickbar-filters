@@ -1,0 +1,11 @@
+{
+  "name": "greedy-quickbar-filters",
+  "version": "0.15.0",
+  "title": "Greedy Quickbar filters",
+  "author": "Sparr",
+  "homepage": "http://github.com/sparr/factorio-mod-greedy-quickbar-filters",
+  "contact": "sparr0@gmail.com",
+  "description": "Empty filtered quickbar slots will pull items from your inventory.",
+  "dependencies": ["base >= 0.15.0"],
+  "factorio_version": "0.15"
+}
