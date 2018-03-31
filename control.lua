@@ -1,35 +1,40 @@
+-- debug_counter = 0
 -- local function debug(...)
 --   if game and game.players[1] then
---     game.players[1].print("DEBUG: " .. serpent.line(...,{comment=false}))
+--     debug_counter = debug_counter + 1
+--     game.players[1].print("DEBUG(" .. string.format("%04d", debug_counter%10000) .. "): " .. serpent.line(...,{comment=false}))
 --   end
 -- end
 
 local function process_changed_inventory(player, src_inv)
-  -- debug(src_inv.index)
-  -- get the player's whole quickbar
-  local qb = player.get_inventory(defines.inventory.player_quickbar)
-  if qb == nil or qb.is_filtered() == false then return end
+  local qb = player.get_quickbar()
+  -- bail if there's no quickbar or it has no filters
+  if not (qb and qb.is_filtered()) then return end
   -- loop through each quickbar slot as a potential destination for items
   for dst_n = 1, #qb do
     local src_n = nil
     local item_name = qb.get_filter(dst_n)
-    if qb[dst_n].valid_for_read == false and -- skip empty qb slots
-       item_name ~= nil then -- skip unfiltered qb slots
-      -- loop through each slot in the changed inventory as a potential source
-      -- debug(item_name)
-      for cnd_n = 1, #src_inv do
-        if src_inv[cnd_n].valid_for_read == true and -- skip empty slots
-           ( (not src_inv.supports_filters()) or src_inv.get_filter(cnd_n) == nil) and -- skip filtered slots
-           src_inv[cnd_n].name == item_name then -- skip slots with the wrong item
-          src_n = cnd_n
-          break
+    if item_name ~= nil then -- skip unfiltered qb slots
+      if not qb[dst_n].valid_for_read then -- skip occupied qb slots
+        -- skip slot with filter that matches the cursor
+        if not (player.cursor_stack and player.cursor_stack.valid_for_read and player.cursor_stack.name == item_name) then
+          -- loop through each slot in the changed inventory as a potential source
+          local filtered = src_inv.is_filtered()
+          for cnd_n = 1, #src_inv do
+            if src_inv[cnd_n].valid_for_read == true then -- skip empty slots
+              if not (filtered and src_inv.get_filter(cnd_n)) then -- skip filtered slots
+                if src_inv[cnd_n].name == item_name then -- skip slots with the wrong item
+                  src_n = cnd_n
+                  break
+                end
+              end
+            end
+          end
         end
       end
     end
-    if src_n ~= nil then
-      -- debug('moving')
+    if src_n then
       if qb[dst_n].set_stack(src_inv[src_n]) then
-        -- debug('moved')
         src_inv[src_n].clear()
         break -- we can stop early IFF this event fires once per changed item
       end
@@ -37,15 +42,15 @@ local function process_changed_inventory(player, src_inv)
   end
 end
 
-local function opmic(event)
+local function on_player_main_inventory_changed(event)
   local player = game.players[event.player_index]
-  process_changed_inventory(player, player.get_inventory(defines.inventory.player_main))
+  process_changed_inventory(player, player.get_main_inventory())
 end
 
-local function opqic(event)
+local function on_player_quickbar_inventory_changed(event)
   local player = game.players[event.player_index]
-  process_changed_inventory(player, player.get_inventory(defines.inventory.player_quickbar))
+  process_changed_inventory(player, player.get_quickbar())
 end
 
-script.on_event(defines.events.on_player_main_inventory_changed, opmic)
-script.on_event(defines.events.on_player_quickbar_inventory_changed, opqic)
+script.on_event(defines.events.on_player_main_inventory_changed, on_player_main_inventory_changed)
+script.on_event(defines.events.on_player_quickbar_inventory_changed, on_player_quickbar_inventory_changed)
